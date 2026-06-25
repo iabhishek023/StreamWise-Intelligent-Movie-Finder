@@ -1,14 +1,22 @@
-const VideoTitle=({title,overview})=>{
+const VideoTitle = ({ title, overview }) => {
     return (
-        <div className="w-screen aspect-video pt-[10%] px-[11%] absolute text-white bg-gradient-to-r from-black">
-            <h1 className=" text-2xl md:text-4xl font-bold">{title}</h1>
-            <p className="hidden md:inline-block py-4 text-lg w-1/2">{overview}</p>
-            <div className="flex gap-5">
-                <button className="border border-black bg-gray-600 text-white rounded-lg  m-2 p-2 md:m-4 md:p-3 w-25 md:w-30 text-xl md:text-3xl  md:font-bold hover:bg-opacity-90">▶️Play</button>
-                <button className="hidden md:inline-block border border-black bg-gray-600 text-white rounded-lg  m-2 p-2 md:m-4 md:p-3 w-25 md:w-30 text-xl md:text-3xl  md:font-bold hover:bg-opacity-90">ℹMore Info</button>
+        <div className="absolute top-0 left-0 w-full h-full flex flex-col justify-end pb-24 px-12 bg-gradient-to-r from-black via-black/40 to-transparent z-10 pointer-events-none">
+            <h1 className="text-3xl md:text-5xl font-bold text-white drop-shadow-lg mb-3">
+                {title}
+            </h1>
+            <p className="hidden md:block text-white text-sm w-2/5 mb-6 line-clamp-3 drop-shadow">
+                {overview}
+            </p>
+            <div className="flex gap-3 pointer-events-auto">
+                <button className="flex items-center gap-2 bg-white text-black font-bold px-6 py-2 rounded-lg text-lg hover:bg-opacity-80 transition">
+                    ▶ Play
+                </button>
+                <button className="flex items-center gap-2 bg-gray-500 bg-opacity-70 text-white font-bold px-6 py-2 rounded-lg text-lg hover:bg-opacity-90 transition">
+                    ℹ More Info
+                </button>
             </div>
         </div>
-    ) 
-}
+    );
+};
 
-export default VideoTitle; 
+export default VideoTitle;
