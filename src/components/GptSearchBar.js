@@ -155,7 +155,7 @@ const callBackendAPI = async (query) => {
       } else if (err.message?.includes("JSON") || err.message?.includes("parse")) {
         dispatch(setGptError("Failed to parse recommendations. Please try again."));
       } else {
-        dispatch(setGptError("Something went wrong. Please try again."));
+        dispatch(setGptError("The API key limit is exhausted. Please try again later "));
       }
     } finally {
       dispatch(setGptLoading(false));
