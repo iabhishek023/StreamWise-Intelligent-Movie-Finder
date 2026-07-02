@@ -22,25 +22,25 @@ export const registerUser = async (name, email, password) => {
 
 export const loginUser = async (email, password) => {
     try {
-        
-        
+        console.log("1. Calling backend URL:", BACKEND_URL);
+
         const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password }),
         });
-        
+
+        console.log("2. Login status:", response.status);
         const data = await response.json();
-        console.log("Java login response:", data); // ADD THIS
+        console.log("3. Login data:", JSON.stringify(data));
 
         if (data.success) {
             localStorage.setItem("streamwise_token", data.data.token);
-            console.log("JWT stored successfully"); // ADD THIS
+            console.log("4. Token stored successfully");
             return data;
         }
 
-        // Login failed — auto register
-        
+        console.log("5. Login failed, trying register...");
         const registerResponse = await fetch(`${BACKEND_URL}/api/auth/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -50,17 +50,19 @@ export const loginUser = async (email, password) => {
                 password,
             }),
         });
+
+        console.log("6. Register status:", registerResponse.status);
         const registerData = await registerResponse.json();
-        
-        
+        console.log("7. Register data:", JSON.stringify(registerData));
+
         if (registerData.success) {
             localStorage.setItem("streamwise_token", registerData.data.token);
-            
+            console.log("8. Token stored after register");
         }
         return registerData;
 
     } catch (err) {
-        console.warn("Backend login failed:", err);
+        console.error("9. Backend error:", err.message);
         return { success: false };
     }
 };
