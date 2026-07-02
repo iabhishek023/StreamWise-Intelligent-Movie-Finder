@@ -22,7 +22,7 @@ export const registerUser = async (name, email, password) => {
 
 export const loginUser = async (email, password) => {
     try {
-        console.log("1. Calling backend URL:", BACKEND_URL);
+        // console.log("1. Calling backend URL:", BACKEND_URL);
 
         const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
             method: "POST",
@@ -30,17 +30,17 @@ export const loginUser = async (email, password) => {
             body: JSON.stringify({ email, password }),
         });
 
-        console.log("2. Login status:", response.status);
+        // console.log("2. Login status:", response.status);
         const data = await response.json();
-        console.log("3. Login data:", JSON.stringify(data));
+        // console.log("3. Login data:", JSON.stringify(data));
 
         if (data.success) {
             localStorage.setItem("streamwise_token", data.data.token);
-            console.log("4. Token stored successfully");
+            // console.log("4. Token stored successfully");
             return data;
         }
 
-        console.log("5. Login failed, trying register...");
+        // console.log("5. Login failed, trying register...");
         const registerResponse = await fetch(`${BACKEND_URL}/api/auth/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -51,9 +51,9 @@ export const loginUser = async (email, password) => {
             }),
         });
 
-        console.log("6. Register status:", registerResponse.status);
+        // console.log("6. Register status:", registerResponse.status);
         const registerData = await registerResponse.json();
-        console.log("7. Register data:", JSON.stringify(registerData));
+        // console.log("7. Register data:", JSON.stringify(registerData));
 
         if (registerData.success) {
             localStorage.setItem("streamwise_token", registerData.data.token);
