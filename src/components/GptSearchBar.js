@@ -1,10 +1,9 @@
 
 import { useDispatch, useSelector } from "react-redux";
 import { useRef, useState } from "react";
-// import Groq from "groq-sdk";
 import { API_OPTIONS } from "../utils/constants";
 import lang from "../utils/languageConstants";
-import { auth } from "../utils/firebase";
+import { searchMovies } from "../utils/backendApi";
 import {
   addGptMovieResult,
   addGptRecommendations,
@@ -20,15 +19,6 @@ const GptSearchBar = () => {
   const searchText = useRef(null);
   const [inputError, setInputError] = useState("");
 
-  // const getGroqClient = () => {
-  //   const apiKey = process.env.REACT_APP_GROQ_KEY;
-  //   if (!apiKey) throw new Error("Groq API key not found. Add REACT_APP_GROQ_KEY to your .env file.");
-  //   return new Groq({
-  //     apiKey,
-  //     dangerouslyAllowBrowser: true,
-  //   });
-  // };
-
   const searchMovieTMDB = async (movieTitle) => {
     try {
       const data = await fetch(
@@ -41,55 +31,6 @@ const GptSearchBar = () => {
       return [];
     }
   };
-
-//   const callGroqAPI = async (query) => {
-//     const groq = getGroqClient();
-
-//     const result = await groq.chat.completions.create({
-//       model: "llama-3.3-70b-versatile",
-//       messages: [
-//         {
-//           role: "user",
-//           content: `You are an expert movie recommendation engine.
-// The user is looking for: "${query}"
-
-// Return a JSON array of exactly 5 movie recommendations.
-// Each object must have these exact fields:
-// - title: (string) exact movie title
-// - year: (number) release year
-// - genre: (string) primary genre
-// - reason: (string) one sentence explaining why this matches the user's request
-// - castHighlight: (string) one notable actor or actress in this film
-// - moodTag: (string) one word mood e.g. Thrilling, Heartwarming, Dark, Fun, Romantic, Intense, Mysterious, Inspiring
-
-// Return ONLY the raw JSON array. No markdown, no backticks, no explanation.
-// Start your response with [ and end with ]`,
-//         },
-//       ],
-//       temperature: 0.7,
-//       max_tokens: 1000,
-//     });
-
-//     return result.choices[0]?.message?.content;
-//   };
-
-const callBackendAPI = async (query) => {
-    const response = await fetch("http://localhost:8081/api/movies/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            query: query,
-            userEmail: auth.currentUser?.email || "anonymous",
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`Backend error: ${response.status}`);
-    }
-
-    const text = await response.text();
-    return text;
-};
 
   const handleGptSearchClick = async () => {
     const query = searchText.current?.value?.trim();
@@ -104,58 +45,39 @@ const callBackendAPI = async (query) => {
     dispatch(setGptLoading(true));
 
     try {
-      // Step 1: Call Groq API  for AI Search
-      // const rawContent = await callGroqAPI(query);
-      const rawContent = await callBackendAPI(query); //JAva Backend API call
+      // Step 1: Call Java backend
+const recommendations = await searchMovies(query);
 
-      if (!rawContent) throw new Error("Empty response from Groq.");
+// Step 2: Validate response
+if (!Array.isArray(recommendations) || recommendations.length === 0) {
+    throw new Error("Received empty recommendations.");
+}
 
-      // Step 2: Parse JSON safely
-      let recommendations = [];
-      try {
-        const cleaned = rawContent.replace(/```json|```/g, "").trim();
-        recommendations = JSON.parse(cleaned);
-      } catch {
-        const match = rawContent.match(/\[[\s\S]*\]/);
-        if (match) {
-          recommendations = JSON.parse(match[0]);
-        } else {
-          throw new Error("Could not parse response as JSON.");
-        }
-      }
+// Step 3: Store in Redux
+dispatch(addGptRecommendations(recommendations));
 
-      // Step 3: Validate response
-      if (!Array.isArray(recommendations) || recommendations.length === 0) {
-        throw new Error("Received empty recommendations.");
-      }
+// Step 4: Fetch TMDB
+const movieTitles = recommendations.map((r) => r.title);
+const tmdbResults = await Promise.all(
+    movieTitles.map((title) => searchMovieTMDB(title))
+);
 
-      // Step 4: Store rich recommendations in Redux
-      dispatch(addGptRecommendations(recommendations));
-
-      // Step 5: Fetch TMDB posters + ratings in parallel
-      const movieTitles = recommendations.map((r) => r.title);
-      const tmdbResults = await Promise.all(
-        movieTitles.map((title) => searchMovieTMDB(title))
-      );
-
-      // Step 6: Store TMDB results in Redux
-      dispatch(
-        addGptMovieResult({
-          movieNames: movieTitles,
-          movieResults: tmdbResults,
-        })
-      );
+// Step 5: Store TMDB
+dispatch(addGptMovieResult({
+    movieNames: movieTitles,
+    movieResults: tmdbResults,
+}));
     } catch (err) {
-      console.error("GPT Search Error:", err);
+      console.error("Search Error:", err);
 
-      if (err.message?.includes("API key")) {
-        dispatch(setGptError("API key missing. Add REACT_APP_GROQ_KEY to your .env file."));
-      } else if (err.message?.includes("429") || err.message?.includes("quota") || err.message?.includes("rate limit")) {
-        dispatch(setGptError("Rate limit hit. Please wait a moment and try again."));
+      if (err.message?.includes("401") || err.message?.includes("403")) {
+        dispatch(setGptError("Session expired. Please sign in again."));
+      } else if (err.message?.includes("Backend error")) {
+        dispatch(setGptError("Backend server error. Please try again."));
       } else if (err.message?.includes("JSON") || err.message?.includes("parse")) {
         dispatch(setGptError("Failed to parse recommendations. Please try again."));
       } else {
-        dispatch(setGptError("The API key limit is exhausted. Please try again later "));
+        dispatch(setGptError("Something went wrong. Please try again."));
       }
     } finally {
       dispatch(setGptLoading(false));

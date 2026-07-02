@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect } from "react";
 import { addUser, removeUser } from "../utils/userSlice";
-import { SUPPORTED_LANGUAGES } from "../utils/constants"; // LOGO removed
+import { SUPPORTED_LANGUAGES } from "../utils/constants";
 import { toggleGptSearchView } from "../utils/gptSlice";
 import { changeLanguage } from "../utils/configSlice";
 
@@ -15,6 +15,9 @@ const Header = () => {
     const showGptSearch = useSelector((store) => store.gpt.showGptSearch);
 
     const handleSignOut = () => {
+        // Clear JWT token from localStorage
+        localStorage.removeItem("streamwise_token");
+
         signOut(auth)
             .then(() => {})
             .catch(() => navigate("/error"));
@@ -79,7 +82,7 @@ const Header = () => {
                         </select>
                     )}
 
-                    {/* GPT Search / HomePage toggle */}
+                    {/* AI Search / HomePage toggle */}
                     <button
                         className="bg-green-700 hover:bg-green-600 text-white px-4 py-2 font-bold rounded-xl transition-colors text-sm"
                         onClick={handleGptSearchClick}

@@ -1,143 +1,176 @@
 import { useState, useRef } from "react";
 import Header from "./Header";
 import { checkValidData } from "../utils/validate";
-import { createUserWithEmailAndPassword,signInWithEmailAndPassword, updateProfile } from "firebase/auth";
+import {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    updateProfile
+} from "firebase/auth";
 import { auth } from "../utils/firebase";
-
 import { useDispatch } from "react-redux";
 import { addUser } from "../utils/userSlice";
 import { BG, USER_AVATAR } from "../utils/constants";
-
+import { loginUser, registerUser } from "../utils/backendApi";
 
 const Login = () => {
     const [isSignInForm, setIsSignInForm] = useState(true);
     const [errorMessage, setErrorMessage] = useState(null);
-  
-    const dispatch=useDispatch();
+    const [loading, setLoading] = useState(false);
 
+    const dispatch = useDispatch();
     const email = useRef(null);
     const password = useRef(null);
-    const name=useRef(null);
-
-
+    const name = useRef(null);
 
     const toggleSignInForm = () => {
-        setIsSignInForm(!isSignInForm)
-    }
+        setIsSignInForm(!isSignInForm);
+        setErrorMessage(null);
+    };
 
-    const handleButtonClick = () => {
-        // console.log(email.current.value);
-        // console.log(password.current.value);
-        const msg =
-            // isSignInForm?
-            checkValidData(email.current.value, password.current.value);
-        //checkValidData(email.current.value,password.current.value,name.current.value);
+    const handleButtonClick = async () => {
+        // Validate inputs
+        const msg = checkValidData(email.current.value, password.current.value);
         setErrorMessage(msg);
-
         if (msg) return;
 
+        setLoading(true);
+
         if (!isSignInForm) {
-            //Sign Up
-            createUserWithEmailAndPassword(auth, email.current.value, password.current.value)
-                .then((userCredential) => {
-                    // Signed up 
-                    const user = userCredential.user;
-                    updateProfile(user, {
-                        displayName: name.current.value, 
-                        photoURL: USER_AVATAR
-                      }).then(() => {
-                        // Profile updated!
-                        const {uid,email,displayName} = auth.currentUser;
-                        dispatch(addUser({uid:uid,email:email,displayName:displayName}))
-                       
-                        // ...
-                      }).catch((error) => {
-                        // An error occurred
-                        setErrorMessage(error.message)
-                        // ...
-                      });
-                    //console.log(user)
-                   
-                    // ...
-                })
-                .catch((error) => {
-                    const errorCode = error.code;
-                    const errorMessage = error.message;
-                    setErrorMessage(errorCode + " " + errorMessage)
-                    // ..
+            // ── SIGN UP ──
+            try {
+                // Step 1: Firebase sign up
+                const userCredential = await createUserWithEmailAndPassword(
+                    auth,
+                    email.current.value,
+                    password.current.value
+                );
+
+                // Step 2: Update Firebase profile
+                await updateProfile(userCredential.user, {
+                    displayName: name.current.value,
+                    photoURL: USER_AVATAR,
                 });
-        }
-        else {
-            //Sign in
-            signInWithEmailAndPassword(auth,  email.current.value, password.current.value)
-                .then((userCredential) => {
-                    // Signed in 
-                    const user = userCredential.user;
-                    console.log(user)
-                  
-                    // ...
-                })
-                .catch((error) => {
-                    const errorCode = error.code;
-                    const errorMessage = error.message;
-                });
+
+                // Step 3: Update Redux store
+                const { uid, email: userEmail, displayName } = auth.currentUser;
+                dispatch(addUser({ uid, email: userEmail, displayName }));
+
+                // Step 4: Register in Java backend — get JWT
+                const backendResponse = await registerUser(
+                    name.current.value,
+                    email.current.value,
+                    password.current.value
+                );
+
+                if (!backendResponse.success) {
+                    console.warn("Backend registration issue:", backendResponse.message);
+                    // Don't block user — Firebase auth succeeded
+                }
+
+            } catch (error) {
+                setErrorMessage(error.message);
+            }
+
+        } else {
+            // ── SIGN IN ──
+            try {
+                // Step 1: Firebase sign in
+                const userCredential = await signInWithEmailAndPassword(
+                    auth,
+                    email.current.value,
+                    password.current.value
+                );
+
+                // Step 2: Login in Java backend — get JWT
+                const backendResponse = await loginUser(
+                    email.current.value,
+                    password.current.value
+                );
+
+                if (!backendResponse.success) {
+                    console.warn("Backend login issue:", backendResponse.message);
+                    // Don't block user — Firebase auth succeeded
+                }
+
+            } catch (error) {
+                setErrorMessage("Invalid email or password.");
+            }
         }
 
-
-    }
+        setLoading(false);
+    };
 
     return (
         <div>
             <Header />
             <div className="absolute">
-                <img className="h-screen object-cover w-screen" src={BG}
-                    alt="bg" />
+                <img
+                    className="h-screen object-cover w-screen"
+                    src={BG}
+                    alt="bg"
+                />
             </div>
             <form
-               
-               onSubmit={(e) => e.preventDefault()} className="w-9/12 md:w-3/12 absolute p-12 bg-black my-36 mx-auto right-0 left-0 text-white bg-opacity-80">
-                <h1
-                    className="font-bold text-3xl py-4">
+                onSubmit={(e) => e.preventDefault()}
+                className="w-9/12 md:w-3/12 absolute p-12 bg-black my-36 mx-auto right-0 left-0 text-white bg-opacity-80"
+            >
+                <h1 className="font-bold text-3xl py-4">
                     {isSignInForm ? "Sign In" : "Sign Up"}
                 </h1>
-                {!isSignInForm
-                    &&
-                    (<input
 
-                        type="text" placeholder="Full Name" className="p-4 my-4 w-full bg-gray-700 text-bg-dark-100" />)}
+                {!isSignInForm && (
+                    <input
+                        ref={name}
+                        type="text"
+                        placeholder="Full Name"
+                        className="p-4 my-4 w-full bg-gray-700 text-white rounded"
+                    />
+                )}
 
                 <input
                     ref={email}
                     type="text"
                     placeholder="E-mail Address"
-                    className="p-4 my-4 w-full bg-gray-700 text-bg-dark-100" />
+                    className="p-4 my-4 w-full bg-gray-700 text-white rounded"
+                />
 
                 <input
                     ref={password}
-                    type="text"
+                    type="password"
                     placeholder="Password"
-                    className="p-4 my-4 w-full bg-gray-700" />
+                    className="p-4 my-4 w-full bg-gray-700 text-white rounded"
+                />
 
-                <p className="text-red-500 font-bold p-2 ">{errorMessage}</p>
+                {errorMessage && (
+                    <p className="text-red-500 font-bold p-2">{errorMessage}</p>
+                )}
 
                 <button
                     onClick={handleButtonClick}
-                    className="p-2 my-2 rounded-xl bg-red-700 w-full"
+                    disabled={loading}
+                    className="p-2 my-2 rounded-xl bg-red-700 w-full font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-600 transition-colors"
                 >
-                    {isSignInForm ? "Sign In" : "Sign Up"}
+                    {loading ? (
+                        <span className="flex items-center justify-center gap-2">
+                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            {isSignInForm ? "Signing In..." : "Signing Up..."}
+                        </span>
+                    ) : (
+                        isSignInForm ? "Sign In" : "Sign Up"
+                    )}
                 </button>
 
-
                 <p
-                    className="p-4 cursor-pointer"
-                    onClick={toggleSignInForm}>
-                    {isSignInForm ? "New to StreamWise? Sign In Later" : "Already A User Sign Up Now "}
+                    className="p-4 cursor-pointer text-gray-400 hover:text-white transition-colors"
+                    onClick={toggleSignInForm}
+                >
+                    {isSignInForm
+                        ? "New to StreamWise? Sign Up Now"
+                        : "Already a user? Sign In"}
                 </p>
-
             </form>
-
         </div>
-    )
-}
+    );
+};
 
 export default Login;
