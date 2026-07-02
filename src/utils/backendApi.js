@@ -1,4 +1,4 @@
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8081";
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8081" || "https://streamwise-backend.onrender.com";
 
 const getToken = () => localStorage.getItem("streamwise_token");
 
